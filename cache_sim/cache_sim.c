@@ -28,6 +28,48 @@ void cache_access(char inst_type, uint addr);
 
 void cache_access(char inst_type, uint addr){
     //TODO: fill you code here
+    uint block_addr, index, tag, j, i, min_time, min_i;
+
+    block_addr = addr / (block);
+    index = block_addr % sets;
+    tag = block_addr / sets;
+
+    for(i = 0; i < assoc; i++)
+    {
+	j = index + (i * sets);
+	if(cache[j].status == VALID && cache[j].tag == tag)
+	{
+	    cache[j].time = sim_time;
+	    break;
+	}
+    }
+
+    if(i == assoc)
+    {
+	total_cache_misses++;
+	min_time = 4294967295;
+	for(i = 0; i < assoc; i++)
+	{
+	    j = index + (i * sets);
+	    if(cache[j].status == INVALID)
+	    {
+		cache[j].status = VALID;
+		cache[j].time = sim_time;
+		cache[j].tag = tag;
+	    	break;
+	    }
+	    if(cache[j].time < min_time)
+	    {
+		min_time = cache[j].time;
+		min_i = j;
+	    }
+	}
+	if(i == assoc)
+	{
+	    cache[min_i].time = sim_time;
+	    cache[min_i].tag = tag;
+	}
+    }
 }
 
 int main(int argc, char** argv)
@@ -48,7 +90,9 @@ int main(int argc, char** argv)
     sets = atoi(argv[1]);
     assoc = atoi(argv[2]);
     block = atoi(argv[3]);
+    uint temp = block;
     while (block >>= 1) ++block_log2;
+    block = temp;
 
     FILE *fp = fopen(argv[4], "r");
     if (fp == NULL){
@@ -67,7 +111,7 @@ int main(int argc, char** argv)
     while (fscanf(fp, "%c 0x%x\n", &inst_type, &addr) != EOF) {
         cache_access(inst_type, addr);
         total_cache_accesses++;
-	    sim_time++;
+        sim_time++;
     }
 
     printf("Cache accesses = %u\n", total_cache_accesses);
